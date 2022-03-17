@@ -297,6 +297,89 @@ def _pack_with_tf_ops(dataset, keys,
 # -----------------------------------------------------------------------------
 # Main dataset prep routines.
 # -----------------------------------------------------------------------------
+
+def preprocess_augft_wmt_data(ft_dataset,
+                        gen_dataset,
+                        shuffle,
+                        num_epochs = 1,
+                        pack_examples = True,
+                        shuffle_buffer_size = 1024000,
+                        max_length = 512,
+                        batch_size = 256,
+                        drop_remainder = True,
+                        prefetch_size = AUTOTUNE,
+                        is_scores_path=None,
+                        num_to_keep=0,
+                        truncate=False,
+                        sample_size=-1):
+  """Shuffle and batch/pack the given dataset."""
+
+  def length_filter(max_len):
+
+    def filter_fn(x):
+      source, target = x['inputs'], x['targets']
+      l = tf.maximum(tf.shape(source)[0], tf.shape(target)[0])
+      return tf.less(l, max_len + 1)
+
+    return filter_fn
+
+  if truncate:
+    gen_dataset = gen_dataset.map(
+        lambda x: {k: v[:max_length] for k, v in x.items()},
+        num_parallel_calls=AUTOTUNE)
+    ft_dataset = ft_dataset.map(
+        lambda x: {k: v[:max_length] for k, v in x.items()},
+        num_parallel_calls=AUTOTUNE)
+  elif max_length > 0:
+    gen_dataset = gen_dataset.filter(length_filter(max_length))
+    ft_dataset = ft_dataset.filter(length_filter(max_length))
+
+  if is_scores_path is not None:
+    logging.info('Doing data selection!')
+    logging.info('Num to keep = %d', num_to_keep)
+    gen_dataset = data_selection(gen_dataset, is_scores_path, num_to_keep)
+
+  if sample_size > 0:
+    logging.info('Downsampling: %d', sample_size)
+    shuff_buff = 200000  # num_to_keep if num_to_keep > 0 else 200000
+    gen_dataset = gen_dataset.shuffle(shuff_buff).take(sample_size)
+
+  ft_size = 6_000 # ft_dataset.cardinality().numpy()
+  assert ft_size > 0
+  gen_size = num_to_keep if sample_size <= 0 else sample_size
+  total_elements = ft_size + gen_size
+  logging.info('Total training elements: %d', total_elements)
+  ft_ratio = float(ft_size) / total_elements
+  gen_ratio = float(gen_size) / total_elements
+  dataset = tf.data.Dataset.sample_from_datasets(
+    [ft_dataset, gen_dataset], weights=[ft_ratio, gen_ratio])
+
+  if shuffle:
+    dataset = dataset.shuffle(shuffle_buffer_size)
+  dataset = dataset.repeat(num_epochs)
+
+  if pack_examples:
+    dataset = pack_dataset(dataset, max_length)
+    dataset = dataset.batch(batch_size, drop_remainder=drop_remainder)
+  else:  # simple (static-shape) padded batching
+    dataset = dataset.padded_batch(
+        batch_size,
+        padded_shapes={
+            'inputs': max_length,
+            'targets': max_length
+        },
+        padding_values={
+            'inputs': 0,
+            'targets': 0
+        },
+        drop_remainder=drop_remainder)
+
+  if prefetch_size:
+    dataset = dataset.prefetch(prefetch_size)
+
+  return dataset
+
+
 def preprocess_wmt_data(dataset,
                         shuffle,
                         num_epochs = 1,
@@ -376,13 +459,14 @@ def data_selection(train_data, is_scores_path, num_to_keep=-1):
       scores.extend(val)
   scores = [float(s) for s in scores]
 
-  lengths = []
-  with tf.io.gfile.GFile(is_scores_path.replace('.csv', '_length.csv'),
-                         'r') as f:
-    reader = csv.reader(f)
-    for val in reader:
-      lengths.extend(val)
-  lengths = [int(s) for s in lengths]
+  if False:
+    lengths = []
+    with tf.io.gfile.GFile(is_scores_path.replace('.csv', '_length.csv'),
+                          'r') as f:
+      reader = csv.reader(f)
+      for val in reader:
+        lengths.extend(val)
+    lengths = [int(s) for s in lengths]
 
   if num_to_keep >= len(scores):
     return train_data
@@ -390,22 +474,155 @@ def data_selection(train_data, is_scores_path, num_to_keep=-1):
   threshold = np.sort(scores)[num_to_keep]
 
   tf_is_scores = tf.data.Dataset.from_tensor_slices(scores)
-  tf_lengths = tf.data.Dataset.from_tensor_slices(lengths)
+  if False:
+    tf_lengths = tf.data.Dataset.from_tensor_slices(lengths)
+    scored_data = tf.data.Dataset.zip((tf_is_scores, tf_lengths, train_data))
 
-  scored_data = tf.data.Dataset.zip((tf_is_scores, tf_lengths, train_data))
-  def filter_fn(score, _, __):  #  # pylint: disable=invalid-name
-    return tf.math.less_equal(score, threshold)
+    def filter_fn(score, _, __):  #  # pylint: disable=invalid-name
+      return tf.math.less_equal(score, threshold)
 
-  def remove_enum(_, length, el):
-    targ_size = tf.math.count_nonzero(el['targets'], dtype=tf.dtypes.int32)
-    assert_op = tf.debugging.assert_equal(
-        length, targ_size, message='Lengths not alligned')
-    with tf.control_dependencies([assert_op]):
-      return el
+    def remove_enum(_, length, el):
+      targ_size = tf.math.count_nonzero(el['targets'], dtype=tf.dtypes.int32)
+      assert_op = tf.debugging.assert_equal(
+          length, targ_size, message='Lengths not alligned')
+      with tf.control_dependencies([assert_op]):
+        return el
+  
+  if True:
+    def filter_fn(score, _):  #  # pylint: disable=invalid-name
+      return tf.math.less_equal(score, threshold)
+    def remove_enum(_, el):
+        return el
+    scored_data = tf.data.Dataset.zip((tf_is_scores, train_data))
 
   train_data = scored_data.filter(filter_fn).map(remove_enum)
   train_data = train_data.cache()
   return train_data
+
+def get_wmt_augft_datasets(dataset_name='wmt17_translate/de-en',
+                          ft_dataset_name=None,
+                          eval_dataset_name=None,
+                          reverse_translation=True,
+                          shard_idx=0,
+                          shard_count=1,
+                          data_dir=None,
+                          vocab_path=None,
+                          target_vocab_size=2**15,  # 32000
+                          max_corpus_chars=10**7,
+                          batch_size=256,
+                          pack_examples=True,
+                          max_length=256,
+                          max_eval_length=256,
+                          paracrawl_size=0,
+                          is_scores_path=None,
+                          num_to_keep=-1,
+                          pseudo_path=None,
+                          shuffle_repeat_train=True,
+                          repeat_count=-1,
+                          newscommentary_size=None,
+                          split_tokenizer=False,
+                          sample_size=-1,
+                          newscomment_sample_ratio=1.0):
+  """Load and return dataset of batched examples for use during training."""
+  if vocab_path is None:
+    vocab_path = os.path.expanduser('~/wmt_sentencepiece_model')
+
+  gen_train_data, _, _ = raw_wmt_datasets(
+      dataset_name=dataset_name,
+      eval_dataset_name=eval_dataset_name,
+      reverse_translation=reverse_translation,
+      shard_idx=shard_idx,
+      shard_count=shard_count,
+      data_dir=data_dir,
+      paracrawl_size=paracrawl_size,
+      shuffle_train_files=(is_scores_path is None) and shuffle_repeat_train,
+      pseudo_path=pseudo_path,
+      newscommentary_size=newscommentary_size,
+      newscomment_sample_ratio=newscomment_sample_ratio)
+
+  ft_train_data, eval_data, _ = raw_wmt_datasets(
+      dataset_name=ft_dataset_name,
+      eval_dataset_name=eval_dataset_name,
+      reverse_translation=reverse_translation,
+      shard_idx=shard_idx,
+      shard_count=shard_count,
+      data_dir=data_dir,
+      shuffle_train_files=(is_scores_path is None) and shuffle_repeat_train,
+      pseudo_path=pseudo_path,
+      newscommentary_size=newscommentary_size,
+      newscomment_sample_ratio=newscomment_sample_ratio)
+  # If is_score_path is None, there is no data selection so we can shuffle.
+  # If it is not None, then we cannot shuffle the input files.
+
+  # Tokenize data.
+  if split_tokenizer:
+    sp_tokenizer_input = tokenizer.load_or_train_tokenizer(
+        train_data,
+        vocab_path=vocab_path + '_input',
+        vocab_size=target_vocab_size,
+        max_corpus_chars=max_corpus_chars,
+        data_keys=('inputs',))
+    sp_tokenizer_target = tokenizer.load_or_train_tokenizer(
+        train_data,
+        vocab_path=vocab_path + '_target',
+        vocab_size=target_vocab_size,
+        max_corpus_chars=max_corpus_chars,
+        data_keys=('targets',))
+    train_data = train_data.map(
+        tokenizer.DoubleTokenizeOp(sp_tokenizer_input=sp_tokenizer_input,
+                                   sp_tokenizer_target=sp_tokenizer_target),
+        num_parallel_calls=AUTOTUNE)
+    eval_data = eval_data.map(
+        tokenizer.DoubleTokenizeOp(sp_tokenizer_input=sp_tokenizer_input,
+                                   sp_tokenizer_target=sp_tokenizer_target),
+        num_parallel_calls=AUTOTUNE)
+    sp_tokenizer = sp_tokenizer_target
+  else:
+    sp_tokenizer = tokenizer.load_or_train_tokenizer(
+        ft_train_data,
+        vocab_path=vocab_path,
+        vocab_size=target_vocab_size,
+        max_corpus_chars=max_corpus_chars)
+
+    # Currently the pseudorefs are stored in pickle files and are pre-tokenized
+    # so we would not tokenize them here. Instead we should write the
+    # pseudo references to a tfrecord in the future.
+    if 'pseudo' not in dataset_name:
+      ft_train_data = ft_train_data.map(
+          tokenizer.TokenizeOp(sp_tokenizer), num_parallel_calls=AUTOTUNE)
+      gen_train_data = gen_train_data.map(
+          tokenizer.TokenizeOp(sp_tokenizer), num_parallel_calls=AUTOTUNE)
+    eval_data = eval_data.map(
+        tokenizer.TokenizeOp(sp_tokenizer), num_parallel_calls=AUTOTUNE)
+
+  train_ds = preprocess_augft_wmt_data(
+      ft_train_data,
+      gen_train_data,
+      shuffle=shuffle_repeat_train,
+      num_epochs=repeat_count,
+      pack_examples=pack_examples,
+      batch_size=batch_size,
+      max_length=max_length,
+      is_scores_path=is_scores_path,
+      num_to_keep=num_to_keep,
+      sample_size=sample_size)
+
+  eval_ds = preprocess_wmt_data(
+      eval_data,
+      shuffle=False,
+      pack_examples=False,
+      batch_size=batch_size,
+      max_length=max_eval_length)
+
+  predict_ds = preprocess_wmt_data(
+      eval_data,
+      shuffle=False,
+      pack_examples=False,
+      batch_size=batch_size,
+      max_length=max_eval_length,
+      drop_remainder=False)
+
+  return train_ds, eval_ds, predict_ds, sp_tokenizer
 
 
 def get_wmt_datasets(dataset_name='wmt17_translate/de-en',

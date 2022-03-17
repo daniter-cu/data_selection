@@ -38,13 +38,18 @@ import jax.numpy as jnp
 import numpy as np
 import tensorflow as tf
 
-from data_selection.wmt import common
-from data_selection.wmt import decode
-from data_selection.wmt import input_pipeline
-from data_selection.wmt import models
-from data_selection.wmt import train_util
+import common
+import decode
+import input_pipeline
+import models
+import train_util
 
 FLAGS = flags.FLAGS
+
+flags.DEFINE_string(
+    'ft_dataset_name', default='wmt17_translate/de-en',
+    help='Name of TFDS translation dataset to use as the target domain train set.')
+
 flags.adopt_module_key_flags(train_util)
 
 
@@ -76,7 +81,8 @@ def main(argv):
   # Load Dataset
   # ---------------------------------------------------------------------------
   logging.info('Initializing dataset.')
-  train_ds, eval_ds, predict_ds, encoder = input_pipeline.get_wmt_datasets(
+  train_ds, eval_ds, predict_ds, encoder = input_pipeline.get_wmt_augft_datasets(
+      ft_dataset_name=FLAGS.ft_dataset_name,
       dataset_name=FLAGS.dataset_name,
       eval_dataset_name=FLAGS.eval_dataset_name,
       shard_idx=jax.process_index(),
@@ -253,45 +259,10 @@ def main(argv):
   best_eval_loss = 1000
   curr_eval_loss = 1000
   eval_loss_history = []
-  do_resample_data = False
-  gradual_selection_size = FLAGS.data_selection_size
   eval_freq = FLAGS.eval_frequency
   with metric_writers.ensure_flushes(writer):
     for step in range(start_step, total_steps):
       is_last_step = step == total_steps - 1
-
-      # Resample training data for gradual FT
-      if do_resample_data:
-        # resample data
-        do_resample_data = False
-        if eval_loss_history[-1] > eval_loss_history[-2]:
-          gradual_selection_size = int(gradual_selection_size / .75)
-        else:
-          gradual_selection_size = int(.75 * gradual_selection_size)
-        if gradual_selection_size < 500_000:
-          eval_freq = int(gradual_selection_size) / 100
-
-        train_ds, eval_ds, predict_ds, encoder = input_pipeline.get_wmt_datasets(
-            dataset_name=FLAGS.dataset_name,
-            eval_dataset_name=FLAGS.eval_dataset_name,
-            shard_idx=jax.process_index(),
-            shard_count=jax.process_count(),
-            data_dir=FLAGS.data_dir,
-            vocab_path=vocab_path,
-            target_vocab_size=FLAGS.vocab_size,
-            batch_size=FLAGS.batch_size,
-            max_length=FLAGS.max_target_length,
-            max_eval_length=FLAGS.max_eval_target_length,
-            paracrawl_size=FLAGS.paracrawl_size,
-            is_scores_path=FLAGS.is_scores_path,
-            num_to_keep=gradual_selection_size,
-            pseudo_path=FLAGS.pseudo_path,
-            repeat_count=FLAGS.repeat_count,
-            newscommentary_size=FLAGS.newscommentary_size,
-            split_tokenizer=FLAGS.split_tokenizer)
-        train_iter = iter(train_ds)
-        logging.info('Decrease selection size to %d at step %d',
-                     gradual_selection_size, step)
 
       # Shard data to devices and do a training step.
       if not FLAGS.eval_only:
