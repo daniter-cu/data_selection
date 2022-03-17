@@ -20,6 +20,7 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+
 python3 train.py --model_dir=$FT_DIR --dataset_name='newscommentary_ft' \
   --batch_size=$BATCHSZ --num_train_steps=4000 --restore_checkpoints \
   --emb_dim=512 --mlp_dim=2048 --num_heads=8 \
