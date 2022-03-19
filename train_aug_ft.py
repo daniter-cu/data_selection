@@ -50,6 +50,10 @@ flags.DEFINE_string(
     'ft_dataset_name', default='wmt17_translate/de-en',
     help='Name of TFDS translation dataset to use as the target domain train set.')
 
+flags.DEFINE_integer(
+    'sample_size', default=-1,
+    help='Downsample out of domain set after data selection.')
+
 flags.adopt_module_key_flags(train_util)
 
 
@@ -99,7 +103,8 @@ def main(argv):
       pseudo_path=FLAGS.pseudo_path,
       repeat_count=FLAGS.repeat_count,
       newscommentary_size=FLAGS.newscommentary_size,
-      split_tokenizer=FLAGS.split_tokenizer)
+      split_tokenizer=FLAGS.split_tokenizer,
+      sample_size=FLAGS.sample_size)
 
   if FLAGS.aux_eval_dataset:
     aux_datasets = []

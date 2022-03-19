@@ -7,7 +7,7 @@ DATA_DIR="../../bucket/cns/tp-d/home/daniter/wmt_data/"
 VOCAB_PATH="../../bucket/cns/ym-d/home/daniter/flax_wmt/t2t/sentencepiece_model"
 IS_SCORE_PATH="../../bucket/cns/pw-d/home/daniter/ende/clf_src/ende_src_bert_scores.csv"
 NUM_TO_KEEP=6000
-SAMPLE_SIZE=6000
+SAMPLE_SIZE=-1
 
 BATCHSZ=128
 while [[ $# -gt 0 ]]; do
@@ -15,6 +15,21 @@ while [[ $# -gt 0 ]]; do
     --gpu)
       BATCHSZ=32
       shift # past argument
+      ;;
+    --num_to_keep)
+      NUM_TO_KEEP="$2"
+      shift # past argument
+      shift # past value
+      ;;
+    --sample_size)
+      SAMPLE_SIZE="$2"
+      shift # past argument
+      shift # past value
+      ;;
+    --output_dir)
+      FT_DIR="$2"
+      shift # past argument
+      shift # past value
       ;;
     -*|--*)
       echo "Unknown option $1"
@@ -31,7 +46,7 @@ python3 train_aug_ft.py --model_dir=$FT_DIR --ft_dataset_name='newscommentary_ft
   --emb_dim=512 --mlp_dim=2048 --num_heads=8 \
   --vocab_path=$VOCAB_PATH --paracrawl_size=4500000 \
   --data_dir=$DATA_DIR --chkpts_to_keep=0 \
-  --pretrained_model_dir=$MODEL_DIR \
+  --pretrained_model_dir=$MODEL_DIR --sample_size $SAMPLE_SIZE \
   --eval_frequency=100 --data_selection_size=$NUM_TO_KEEP \
   --save_checkpoints=False --is_scores_path=$IS_SCORE_PATH \
   --compute_bleu=False --learning_rate=0.005
