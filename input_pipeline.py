@@ -303,7 +303,7 @@ def preprocess_augft_wmt_data(ft_dataset,
                         shuffle,
                         num_epochs = 1,
                         pack_examples = True,
-                        shuffle_buffer_size = 1024000,
+                        shuffle_buffer_size = 1_000_000,
                         max_length = 512,
                         batch_size = 256,
                         drop_remainder = True,
@@ -459,14 +459,13 @@ def data_selection(train_data, is_scores_path, num_to_keep=-1):
       scores.extend(val)
   scores = [float(s) for s in scores]
 
-  if False:
-    lengths = []
-    with tf.io.gfile.GFile(is_scores_path.replace('.csv', '_length.csv'),
-                          'r') as f:
-      reader = csv.reader(f)
-      for val in reader:
-        lengths.extend(val)
-    lengths = [int(s) for s in lengths]
+  lengths = []
+  with tf.io.gfile.GFile(is_scores_path.replace('.csv', '_length.csv'),
+                        'r') as f:
+    reader = csv.reader(f)
+    for val in reader:
+      lengths.extend(val)
+  lengths = [int(s) for s in lengths]
 
   if num_to_keep >= len(scores):
     return train_data
@@ -474,26 +473,25 @@ def data_selection(train_data, is_scores_path, num_to_keep=-1):
   threshold = np.sort(scores)[num_to_keep]
 
   tf_is_scores = tf.data.Dataset.from_tensor_slices(scores)
-  if False:
-    tf_lengths = tf.data.Dataset.from_tensor_slices(lengths)
-    scored_data = tf.data.Dataset.zip((tf_is_scores, tf_lengths, train_data))
+  tf_lengths = tf.data.Dataset.from_tensor_slices(lengths)
+  scored_data = tf.data.Dataset.zip((tf_is_scores, tf_lengths, train_data))
 
-    def filter_fn(score, _, __):  #  # pylint: disable=invalid-name
-      return tf.math.less_equal(score, threshold)
+  def filter_fn(score, _, __):  #  # pylint: disable=invalid-name
+    return tf.math.less_equal(score, threshold)
 
-    def remove_enum(_, length, el):
-      targ_size = tf.math.count_nonzero(el['targets'], dtype=tf.dtypes.int32)
-      assert_op = tf.debugging.assert_equal(
-          length, targ_size, message='Lengths not alligned')
-      with tf.control_dependencies([assert_op]):
-        return el
+  def remove_enum(_, length, el):
+    targ_size = tf.math.count_nonzero(el['targets'], dtype=tf.dtypes.int32)
+    assert_op = tf.debugging.assert_equal(
+        length, targ_size, message='Lengths not alligned')
+    with tf.control_dependencies([assert_op]):
+      return el
   
-  if True:
-    def filter_fn(score, _):  #  # pylint: disable=invalid-name
-      return tf.math.less_equal(score, threshold)
-    def remove_enum(_, el):
-        return el
-    scored_data = tf.data.Dataset.zip((tf_is_scores, train_data))
+  # if True:
+  #   def filter_fn(score, _):  #  # pylint: disable=invalid-name
+  #     return tf.math.less_equal(score, threshold)
+  #   def remove_enum(_, el):
+  #       return el
+  #   scored_data = tf.data.Dataset.zip((tf_is_scores, train_data))
 
   train_data = scored_data.filter(filter_fn).map(remove_enum)
   train_data = train_data.cache()
