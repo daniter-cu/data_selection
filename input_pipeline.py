@@ -485,13 +485,6 @@ def data_selection(train_data, is_scores_path, num_to_keep=-1):
         length, targ_size, message='Lengths not alligned')
     with tf.control_dependencies([assert_op]):
       return el
-  
-  # if True:
-  #   def filter_fn(score, _):  #  # pylint: disable=invalid-name
-  #     return tf.math.less_equal(score, threshold)
-  #   def remove_enum(_, el):
-  #       return el
-  #   scored_data = tf.data.Dataset.zip((tf_is_scores, train_data))
 
   train_data = scored_data.filter(filter_fn).map(remove_enum)
   train_data = train_data.cache()
