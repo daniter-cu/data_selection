@@ -40,7 +40,6 @@ wmt_train_small = 'train_small.tsv'
 wmt_test = 'test.tsv'
 wmt_test_large = 'test_large.tsv'
 
-
 class WmtDatasetBuilder():
   """Util class for building WMT datasets for MT experiments."""
 
@@ -125,7 +124,8 @@ class WmtDatasetBuilder():
         'wmt_filtered_half': self.build_wmt_filtered_half,
         'wmt_ft': self.build_wmt_ft,
         'wmt_ft_half': self.build_wmt_ft_half,
-        'newscomment_eval_train': self.build_newscomment_eval_train
+        'newscomment_eval_train': self.build_newscomment_eval_train,
+        'selected_data' : self.build_selected_train_data
     }
 
   def build_shard_spec(self, max_size=100, percent=True, start=0):
@@ -138,6 +138,24 @@ class WmtDatasetBuilder():
 
   def retrieve_builder(self):
     return self.default_builder_obj
+
+  def build_selected_train_data(self):
+    """Create dataset from selected data in csv file."""
+    train_files = [self.data_dir]
+
+    train_data = tf.data.experimental.CsvDataset(
+        train_files,
+        record_defaults=[tf.string, tf.string, tf.string])
+
+    train_data = train_data.cache()  # only read once
+
+    def to_features_dict(_, eng, rus):
+      return {'inputs': eng, 'targets': rus}
+
+    train_data = train_data.map(to_features_dict)
+
+    self.default_builder_obj = None
+    return train_data, train_data
 
   def build_wmt_ft_half(self):
     """Create en-ru paracrawl / newscommentary dataset."""
