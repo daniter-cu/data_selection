@@ -26,13 +26,13 @@ while [[ $# -gt 0 ]]; do
     --selected)
       DATASET_NAME=$DATASET_NAME_SELECTED
       DATA_DIR=$DATA_DIR_SELECTED
-      IS_SCORES_PATH=$IS_SCORES_PATH_SELECTED_NN
+      IS_SCORE_PATH=$IS_SCORES_PATH_SELECTED_NN
       shift # past argument
       ;;
     --kmeans)
       DATASET_NAME=$DATASET_NAME_SELECTED
       DATA_DIR=$DATA_DIR_SELECTED
-      IS_SCORES_PATH=$IS_SCORES_PATH_SELECTED_KMEANS
+      IS_SCORE_PATH=$IS_SCORES_PATH_SELECTED_KMEANS
       shift # past argument
       ;;
     --num_to_keep)
