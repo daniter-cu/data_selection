@@ -4,6 +4,7 @@
 FT_DIR="../results/aug_ft_base"
 MODEL_DIR="../../bucket/cns/vj-d/home/daniter/flax_wmt/para_nc1k/checkpoint_300000"
 DATA_DIR="../../bucket/cns/tp-d/home/daniter/wmt_data/"
+FT_DATA_DIR="../../bucket/cns/tp-d/home/daniter/wmt_data/"
 VOCAB_PATH="../../bucket/cns/ym-d/home/daniter/flax_wmt/t2t/sentencepiece_model"
 IS_SCORE_PATH="../../bucket/cns/pw-d/home/daniter/ende/clf_src/ende_src_bert_scores.csv"
 NUM_TO_KEEP=6000
@@ -59,7 +60,7 @@ done
 echo "Using batch size $BATCHSZ"
 
 python3 train_aug_ft.py --model_dir=$FT_DIR --ft_dataset_name='newscommentary_ft' \
-  --dataset_name=$DATASET_NAME \
+  --dataset_name=$DATASET_NAME --ft_data_dir=$FT_DATA_DIR \
   --batch_size=$BATCHSZ --num_train_steps=4000 --restore_checkpoints \
   --emb_dim=512 --mlp_dim=2048 --num_heads=8 \
   --vocab_path=$VOCAB_PATH --paracrawl_size=4500000 \

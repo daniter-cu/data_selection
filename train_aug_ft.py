@@ -50,6 +50,10 @@ flags.DEFINE_string(
     'ft_dataset_name', default='wmt17_translate/de-en',
     help='Name of TFDS translation dataset to use as the target domain train set.')
 
+flags.DEFINE_string(
+    'ft_data_dir', default='wmt17_translate/de-en',
+    help='Name of TFDS translation dataset to use as the target domain train set.')
+
 flags.DEFINE_integer(
     'sample_size', default=-1,
     help='Downsample out of domain set after data selection.')
@@ -92,6 +96,7 @@ def main(argv):
       shard_idx=jax.process_index(),
       shard_count=jax.process_count(),
       data_dir=FLAGS.data_dir,
+      ft_data_dir=FLAGS.ft_data_dir,
       vocab_path=vocab_path,
       target_vocab_size=FLAGS.vocab_size,
       batch_size=FLAGS.batch_size,
