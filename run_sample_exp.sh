@@ -37,15 +37,14 @@
 # --output_dir ../results/aug_ft_keep100k_samp50k
 
 # NN
-bash run_aug_ft.sh --num_to_keep 6000 --output_dir ../results/aug_ft_nn_keep6k --selected
-bash run_aug_ft.sh --num_to_keep 12000 --output_dir ../results/aug_ft_nn_keep12k --selected
-bash run_aug_ft.sh --num_to_keep 24000 --output_dir ../results/aug_ft_nn_keep24k --selected
-bash run_aug_ft.sh --num_to_keep 50000 --output_dir ../results/aug_ft_nn_keep50k --selected
-bash run_aug_ft.sh --num_to_keep 100000 --output_dir ../results/aug_ft_nn_keep100k --selected
+#bash run_aug_ft.sh --num_to_keep 6000 --output_dir ../results/aug_ft_nn_keep6k --selected
+#bash run_aug_ft.sh --num_to_keep 12000 --output_dir ../results/aug_ft_nn_keep12k --selected
+#bash run_aug_ft.sh --num_to_keep 24000 --output_dir ../results/aug_ft_nn_keep24k --selected
+#bash run_aug_ft.sh --num_to_keep 50000 --output_dir ../results/aug_ft_nn_keep50k --selected
+#bash run_aug_ft.sh --num_to_keep 100000 --output_dir ../results/aug_ft_nn_keep100k --selected
 
 # KMEANS
 bash run_aug_ft.sh --num_to_keep 6000 --output_dir ../results/aug_ft_kmeans_keep6k --kmeans
 bash run_aug_ft.sh --num_to_keep 12000 --output_dir ../results/aug_ft_kmeans_keep12k --kmeans
 bash run_aug_ft.sh --num_to_keep 24000 --output_dir ../results/aug_ft_kmeans_keep24k --kmeans
 bash run_aug_ft.sh --num_to_keep 50000 --output_dir ../results/aug_ft_kmeans_keep50k --kmeans
-bash run_aug_ft.sh --num_to_keep 100000 --output_dir ../results/aug_ft_kmeans_keep100k --kmeans
