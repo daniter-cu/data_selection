@@ -15,6 +15,7 @@ DATA_DIR_SELECTED="../../bucket/selected_data/training_data.csv"
 IS_SCORES_PATH_SELECTED_NN="../../bucket/selected_data/nn_ranking_scores.csv"
 IS_SCORES_PATH_SELECTED_KMEANS="../../bucket/selected_data/kmeans_ranking_scores.csv"
 DATASET_NAME_SELECTED="selected_data"
+LR=0.005
 
 BATCHSZ=128
 while [[ $# -gt 0 ]]; do
@@ -45,6 +46,11 @@ while [[ $# -gt 0 ]]; do
       shift # past argument
       shift # past value
       ;;
+    --lr)
+      LR="$2"
+      shift # past argument
+      shift # past value
+      ;;
     --output_dir)
       FT_DIR="$2"
       shift # past argument
@@ -68,4 +74,4 @@ python3 train_aug_ft.py --model_dir=$FT_DIR --ft_dataset_name='newscommentary_ft
   --pretrained_model_dir=$MODEL_DIR --sample_size $SAMPLE_SIZE \
   --eval_frequency=100 --data_selection_size=$NUM_TO_KEEP \
   --save_checkpoints=False --is_scores_path=$IS_SCORE_PATH \
-  --compute_bleu=False --learning_rate=0.005
+  --compute_bleu=False --learning_rate=$LR
