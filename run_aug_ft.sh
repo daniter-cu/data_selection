@@ -13,7 +13,7 @@ DATASET_NAME="newscommentary_paracrawl"
 
 DATA_DIR_SELECTED="../../bucket/selected_data/training_data.csv"
 IS_SCORES_PATH_SELECTED_NN="../../bucket/selected_data/nn_ranking_scores.csv"
-IS_SCORES_PATH_SELECTED_KMEANS="../../bucket/selected_data/kmeans_ranking_scores.csv"
+IS_SCORES_PATH_SELECTED_KMEANS="../../bucket/selected_data/kmeans_ranking_sampled_scores.csv"
 DATASET_NAME_SELECTED="selected_data"
 LR=0.005
 
