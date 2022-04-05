@@ -342,7 +342,7 @@ def preprocess_augft_wmt_data(ft_dataset,
   if sample_size > 0:
     logging.info('Downsampling: %d', sample_size)
     shuff_buff = 200000  # num_to_keep if num_to_keep > 0 else 200000
-    gen_dataset = gen_dataset.shuffle(shuff_buff).take(sample_size)
+    gen_dataset = gen_dataset.shuffle(shuff_buff, reshuffle_each_iteration=False).take(sample_size)
 
   ft_size = 6_000 # ft_dataset.cardinality().numpy()
   assert ft_size > 0
@@ -419,7 +419,7 @@ def preprocess_wmt_data(dataset,
   if sample_size > 0:
     logging.info('Downsampling: %d', sample_size)
     shuff_buff = 200000  # num_to_keep if num_to_keep > 0 else 200000
-    dataset = dataset.shuffle(shuff_buff).take(sample_size)
+    dataset = dataset.shuffle(shuff_buff, reshuffle_each_iteration=False).take(sample_size)
 
   if shuffle:
     dataset = dataset.shuffle(shuffle_buffer_size)
