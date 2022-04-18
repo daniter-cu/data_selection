@@ -7,6 +7,7 @@ DATA_DIR="../../bucket/cns/tp-d/home/daniter/wmt_data/"
 FT_DATA_DIR="../../bucket/cns/tp-d/home/daniter/wmt_data/"
 VOCAB_PATH="../../bucket/cns/ym-d/home/daniter/flax_wmt/t2t/sentencepiece_model"
 IS_SCORE_PATH="../../bucket/cns/pw-d/home/daniter/ende/clf_src/ende_src_bert_scores.csv"
+CDS_SCORE_PATH="../../bucket/cns/tp-d/home/daniter/flax_wmt/para_nc1k_is200k_after_diffs.csv"
 NUM_TO_KEEP=6000
 SAMPLE_SIZE=-1
 DATASET_NAME="newscommentary_paracrawl"
@@ -34,6 +35,10 @@ while [[ $# -gt 0 ]]; do
       DATASET_NAME=$DATASET_NAME_SELECTED
       DATA_DIR=$DATA_DIR_SELECTED
       IS_SCORE_PATH=$IS_SCORES_PATH_SELECTED_KMEANS
+      shift # past argument
+      ;;
+    --cds)
+      IS_SCORE_PATH=$CDS_SCORES_PATH
       shift # past argument
       ;;
     --num_to_keep)
