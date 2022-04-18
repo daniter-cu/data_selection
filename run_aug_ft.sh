@@ -38,7 +38,7 @@ while [[ $# -gt 0 ]]; do
       shift # past argument
       ;;
     --cds)
-      IS_SCORE_PATH=$CDS_SCORES_PATH
+      IS_SCORE_PATH=$CDS_SCORE_PATH
       shift # past argument
       ;;
     --num_to_keep)
