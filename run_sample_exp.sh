@@ -10,7 +10,7 @@
 
 # # 12k
 bash run_aug_ft.sh --num_to_keep 12000 --sample_size 6000 \
---output_dir ../results/aug_ft_keep12k_samp6k
+--output_dir ../results/aug_ft_keep12k_samp6k_norep
 
 # 24k
 bash run_aug_ft.sh --num_to_keep 24000 --sample_size 6000 \
